@@ -1,15 +1,19 @@
 package jp.t2v.lab.play2.stackc
 
+import javax.inject.Inject
+
 import play.api.mvc._
+
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
-import scala.util.control.{NonFatal, ControlThrowable}
+import scala.util.control.{ControlThrowable, NonFatal}
 
+@Inject
 trait StackableController {
-    self: Controller =>
+    self: AbstractController =>
 
-  final class StackActionBuilder(params: Attribute[_]*) extends ActionBuilder[RequestWithAttributes] {
+  final class StackActionBuilder[B](override val parser: BodyParser[B], params: Attribute[_]*) extends ActionBuilder[RequestWithAttributes, B] {
     def invokeBlock[A](req: Request[A], block: (RequestWithAttributes[A]) => Future[Result]): Future[Result] = {
       val request = new RequestWithAttributes(req, new TrieMap[RequestAttributeKey[_], Any] ++= params.map(_.toTuple))
       try {
@@ -19,15 +23,18 @@ trait StackableController {
         case NonFatal(e) => cleanupOnFailed(request, e); throw e
       }
     }
+    override protected def executionContext: ExecutionContext = self.controllerComponents.executionContext
   }
 
-  final def AsyncStack[A](p: BodyParser[A], params: Attribute[_]*)(f: RequestWithAttributes[A] => Future[Result]): Action[A] = new StackActionBuilder(params: _*).async(p)(f)
-  final def AsyncStack(params: Attribute[_]*)(f: RequestWithAttributes[AnyContent] => Future[Result]): Action[AnyContent] = new StackActionBuilder(params: _*).async(f)
-  final def AsyncStack(f: RequestWithAttributes[AnyContent] => Future[Result]): Action[AnyContent] = new StackActionBuilder().async(f)
+  private lazy val defaultBodyParser = self.controllerComponents.parsers.default
 
-  final def StackAction[A](p: BodyParser[A], params: Attribute[_]*)(f: RequestWithAttributes[A] => Result): Action[A] = new StackActionBuilder(params: _*).apply(p)(f)
-  final def StackAction(params: Attribute[_]*)(f: RequestWithAttributes[AnyContent] => Result): Action[AnyContent] = new StackActionBuilder(params: _*).apply(f)
-  final def StackAction(f: RequestWithAttributes[AnyContent] => Result): Action[AnyContent] = new StackActionBuilder().apply(f)
+  final def AsyncStack[A](p: BodyParser[A], params: Attribute[_]*)(f: RequestWithAttributes[A] => Future[Result]): Action[A] = new StackActionBuilder(p, params: _*).async(p)(f)
+  final def AsyncStack(params: Attribute[_]*)(f: RequestWithAttributes[AnyContent] => Future[Result]): Action[AnyContent] = new StackActionBuilder[AnyContent](defaultBodyParser, params: _*).async(f)
+  final def AsyncStack(f: RequestWithAttributes[AnyContent] => Future[Result]): Action[AnyContent] = new StackActionBuilder[AnyContent](defaultBodyParser).async(f)
+
+  final def StackAction[A](p: BodyParser[A], params: Attribute[_]*)(f: RequestWithAttributes[A] => Result): Action[A] = new StackActionBuilder(p, params: _*).apply(p)(f)
+  final def StackAction(params: Attribute[_]*)(f: RequestWithAttributes[AnyContent] => Result): Action[AnyContent] = new StackActionBuilder[AnyContent](defaultBodyParser, params: _*).apply(f)
+  final def StackAction(f: RequestWithAttributes[AnyContent] => Result): Action[AnyContent] = new StackActionBuilder[AnyContent](defaultBodyParser).apply(f)
 
   def proceed[A](request: RequestWithAttributes[A])(f: RequestWithAttributes[A] => Future[Result]): Future[Result] = f(request)
 

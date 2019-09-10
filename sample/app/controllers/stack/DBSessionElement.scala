@@ -1,13 +1,17 @@
 package controllers.stack
 
-import play.api.mvc.{Result, Controller}
-import scalikejdbc._
-import jp.t2v.lab.play2.stackc.{RequestWithAttributes, RequestAttributeKey, StackableController}
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import javax.inject.Inject
 
+import jp.t2v.lab.play2.stackc.{RequestAttributeKey, RequestWithAttributes, StackableController}
+import play.api.mvc.{AbstractController, Result}
+import scalikejdbc._
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+
+@Inject
 trait DBSessionElement extends StackableController {
-    self: Controller =>
+    self: AbstractController =>
 
   case object DBSessionKey extends RequestAttributeKey[DBSession]
 

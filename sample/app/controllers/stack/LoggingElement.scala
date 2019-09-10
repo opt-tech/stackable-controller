@@ -1,11 +1,14 @@
 package controllers.stack
 
-import play.api.mvc.{Result, Controller}
+import javax.inject.Inject
+
 import jp.t2v.lab.play2.stackc.{RequestWithAttributes, StackableController}
 import play.api.Logger
+import play.api.mvc.{AbstractController, InjectedController, Result}
 
+@Inject
 trait LoggingElement extends StackableController {
-    self: Controller =>
+    self: AbstractController =>
 
   override def cleanupOnSucceeded[A](req: RequestWithAttributes[A], res: Option[Result]): Unit = {
       res.map { result =>
