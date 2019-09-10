@@ -37,7 +37,7 @@ lazy val _pomExtra = {
 }
 
 val Scala211 = "2.11.12"
-val Scala212 = "2.12.9"
+val Scala212 = "2.12.8"
 
 lazy val core = Project(
   id = "core",
